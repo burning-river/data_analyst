@@ -1,0 +1,75 @@
+design_task:
+  description: >
+    Take the high level requirements described here and prepare a detailed design for the engineer;
+    everything should be in 1 python module, but outline the classes and methods in the module.
+    Here are the requirements: {requirements}
+    IMPORTANT: Only output the design in markdown format, laying out in detail the classes and functions in the module, describing the functionality.
+  expected_output: >
+    A detailed design for the engineer, identifying the classes and functions in the module.
+  agent: engineering_lead
+  output_file: output/{module_name}_design.md
+
+code_task:
+  description: >
+    Write a python module that implements the design described by the engineering lead, in order to achieve the requirements.
+    Here are the requirements: {requirements}
+  expected_output: >
+    A python module that implements the design and achieves the requirements.
+    IMPORTANT: Output ONLY the raw Python code without any markdown formatting, code block delimiters, or backticks.
+    The output should be valid Python code that can be directly saved to a file and executed.
+  agent: backend_engineer
+  context:
+    - design_task
+  output_file: output/{module_name}
+
+# css_development_task:
+#   description: >
+#     Write a CSS file for the website where the platform will be deployed.
+#     Here are the requirements: {requirements}
+#   expected_output: >
+#     A CSS file named output/static/styles.css for styling and layout.
+#   agent: web_developer
+#   context:
+#     - code_task
+#   output_file: output/static/styles.css
+
+# js_development_task:
+#   description: >
+#     Write a Javascript for the website where the platform will be deployed.
+#     Here are the requirements: {requirements}
+#   expected_output: >
+#     A Javascript file named output/static/script.js that allows dynamic content manipulation and controls the behavior of the page.
+#   agent: web_developer
+#   context:
+#     - code_task
+#   output_file: output/static/script.js
+
+html_development_task:
+  description: >
+    Write a HTML template for the website where the platform will be deployed.
+    # Here are the requirements: {requirements}
+  expected_output: >
+    A HTML file named output/templates/index.html laying out the framework for the webpage.
+    It should allow the user to upload a CSV file which can be analyzed by {module_name}
+  agent: web_developer
+  # context:
+  #   - css_development_task
+  #   - js_development_task
+  output_file: output/templates/index.html
+
+frontend_task:
+  description: >
+    Write a FastAPI UI in a module app.py that demonstrates the given backend class in {module_name}.
+    Here are the requirements: {requirements}
+  expected_output: >
+    A FastAPI UI in module app.py that demonstrates the given backend class.
+    The file should be ready so that it can be run as-is, in the same directory as the backend module, and it should import the backend class from {module_name}.
+    IMPORTANT: Output ONLY the raw Python code without any markdown formatting, code block delimiters, or backticks.
+    The output should be valid Python code that can be directly saved to a file and executed.
+    The app uses output/templates/index.html as a frontend.
+    # The code should read the CSV file uploaded by the user and call the {module_name} to execute the {requirements}.
+  agent: frontend_engineer
+  context:
+    - code_task
+    - html_development_task
+  output_file: output/app.py
