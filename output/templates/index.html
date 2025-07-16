@@ -1,1 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Data Analysis Platform</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 2rem;
+            background: #f5f7fa;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .upload-section {
+            max-width: 600px;
+            margin: 0 auto 2rem auto;
+            padding: 1rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 0.3rem;
+        }
+        button {
+            margin-top: 1rem;
+            padding: 0.7rem 1.2rem;
+            font-size: 1rem;
+            background-color: #007bff;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+        }
+        button:disabled {
+            background-color: #a1c2f1;
+            cursor: not-allowed;
+        }
+        #messages {
+            max-width: 600px;
+            margin: 0 auto 1rem auto;
+            white-space: pre-wrap;
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 5px;
+            padding: 1rem;
+            color: #856404;
+            font-family: monospace;
+            display: none;
+        }
+        #results {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 1rem;
+            overflow-x: auto;
+        }
+        h2 {
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 0.3rem;
+            margin-top: 1rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        th, td {
+            padding: 0.45rem 0.7rem;
+            border: 1px solid #ddd;
+            text-align: left;
+            vertical-align: top;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 3rem;
+            color: #777;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>Data Analysis Platform</h1>
+    <section class="upload-section">
+        <form id="uploadForm" method="post" enctype="multipart/form-data" action="/upload">
+            <label for="csvFile">Upload CSV File:</label>
+            <input type="file" id="csvFile" name="csvFile" accept=".csv,text/csv" required />
+            <button type="submit" id="uploadBtn" disabled>Analyze Data</button>
+        </form>
+    </section>
 
+    <section id="messages"></section>
+
+    <section id="results" aria-live="polite" aria-atomic="true"></section>
+
+    <script>
+        const csvFileInput = document.getElementById('csvFile');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const messages = document.getElementById('messages');
+        const results = document.getElementById('results');
+        const uploadForm = document.getElementById('uploadForm');
+
+        // Enable button only if file selected
+        csvFileInput.addEventListener('change', () => {
+            uploadBtn.disabled = !csvFileInput.files.length;
+            clearFeedback();
+            clearResults();
+        });
+
+        function clearFeedback() {
+            messages.style.display = 'none';
+            messages.textContent = '';
+        }
+
+        function clearResults() {
+            results.innerHTML = '';
+        }
+
+        // Submit form and handle CSV upload asynchronously
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearFeedback();
+            clearResults();
+
+            if (!csvFileInput.files.length) {
+                showMessage('Please select a CSV file before submitting.', true);
+                return;
+            }
+
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Analyzing...';
+
+            const formData = new FormData();
+            formData.append('csvFile', csvFileInput.files[0]);
+
+            try {
+                // Send file to backend endpoint `/upload` (assumed route, to be implemented in backend analyst.py integration)
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Server error: ${errorText || response.statusText}`);
+                }
+
+                const analysisData = await response.json();
+
+                renderAnalysisResults(analysisData);
+
+            } catch (error) {
+                showMessage(`Error: ${error.message}`, true);
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Analyze Data';
+            }
+        });
+
+        // Show messages such as errors or info
+        function showMessage(msg, isError=false) {
+            messages.style.display = 'block';
+            messages.style.color = isError ? '#721c24' : '#856404';
+            messages.style.backgroundColor = isError ? '#f8d7da' : '#fff3cd';
+            messages.style.borderColor = isError ? '#f5c6cb' : '#ffeeba';
+            messages.textContent = msg;
+        }
+
+        // Create and insert HTML tables for the analysis results
+        function renderAnalysisResults(data) {
+            /* Expected data structure (JSON) from backend:
+                {
+                  "data_size": [rows, columns],
+                  "data_types": { colName: typeStr, ... },
+                  "missing_values": { colName: missingCount, ... },
+                  "numeric_stats": {
+                      colName: {
+                          mean: float,
+                          median: float,
+                          mode: float,
+                          std_dev: float,
+                          range: float
+                      }, ...
+                  },
+                  "categorical_stats": {
+                      colName: {
+                          mode: string,
+                          unique_values: int
+                      }, ...
+                  }
+                }
+            */
+            const {
+                data_size,
+                data_types,
+                missing_values,
+                numeric_stats,
+                categorical_stats
+            } = data;
+
+            let html = '';
+
+            // Data Size
+            html += `<h2>Data Size</h2>`;
+            html += `<p>Rows: <strong>${data_size[0]}</strong>, Columns: <strong>${data_size[1]}</strong></p>`;
+
+            // Data Types Table
+            html += `<h2>Column Data Types</h2>`;
+            html += buildKeyValueTable(data_types, ['Column', 'Data Type']);
+
+            // Missing Values Table
+            html += `<h2>Missing Values Count</h2>`;
+            html += buildKeyValueTable(missing_values, ['Column', 'Missing Values']);
+
+            // Numeric Stats Table(s)
+            if (numeric_stats && Object.keys(numeric_stats).length > 0) {
+                html += `<h2>Numeric Columns Statistics</h2>`;
+                html += `<table><thead><tr>
+                    <th>Column</th>
+                    <th>Mean</th>
+                    <th>Median</th>
+                    <th>Mode</th>
+                    <th>Std. Dev.</th>
+                    <th>Range</th>
+                    </tr></thead><tbody>`;
+                for (const [col, stats] of Object.entries(numeric_stats)) {
+                    html += `<tr>
+                        <td>${escapeHtml(col)}</td>
+                        <td>${formatNumber(stats.mean)}</td>
+                        <td>${formatNumber(stats.median)}</td>
+                        <td>${formatNumber(stats.mode)}</td>
+                        <td>${formatNumber(stats.std_dev)}</td>
+                        <td>${formatNumber(stats.range)}</td>
+                    </tr>`;
+                }
+                html += `</tbody></table>`;
+            } else {
+                html += `<h2>Numeric Columns Statistics</h2><p>No numeric columns found in the dataset.</p>`;
+            }
+
+            // Categorical Stats Table(s)
+            if (categorical_stats && Object.keys(categorical_stats).length > 0) {
+                html += `<h2>Categorical Columns Statistics</h2>`;
+                html += `<table><thead><tr>
+                    <th>Column</th>
+                    <th>Mode</th>
+                    <th>Unique Values</th>
+                    </tr></thead><tbody>`;
+                for (const [col, stats] of Object.entries(categorical_stats)) {
+                    html += `<tr>
+                        <td>${escapeHtml(col)}</td>
+                        <td>${stats.mode !== null && stats.mode !== undefined ? escapeHtml(stats.mode.toString()) : '(none)'}</td>
+                        <td>${stats.unique_values}</td>
+                    </tr>`;
+                }
+                html += `</tbody></table>`;
+            } else {
+                html += `<h2>Categorical Columns Statistics</h2><p>No categorical columns found in the dataset.</p>`;
+            }
+
+            results.innerHTML = html;
+        }
+
+        // Helper: build table for simple key-value objects
+        function buildKeyValueTable(obj, headers) {
+            let tableHtml = `<table><thead><tr>`;
+            for (const header of headers) {
+                tableHtml += `<th>${escapeHtml(header)}</th>`;
+            }
+            tableHtml += `</tr></thead><tbody>`;
+            for (const [key, val] of Object.entries(obj)) {
+                tableHtml += `<tr><td>${escapeHtml(key)}</td><td>${escapeHtml(val?.toString() ?? '')}</td></tr>`;
+            }
+            tableHtml += `</tbody></table>`;
+            return tableHtml;
+        }
+
+        // Helper: format numbers, show NaN or null as "(n/a)"
+        function formatNumber(num) {
+            if (num === null || num === undefined || Number.isNaN(num)) {
+                return '(n/a)';
+            }
+            // Fixed to 4 decimals max, strip trailing zeros
+            return parseFloat(num).toFixed(4).replace(/\.?0+$/, '');
+        }
+
+        // Helper: escape HTML entities to avoid injection
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
