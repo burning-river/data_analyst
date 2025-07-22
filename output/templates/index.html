@@ -218,7 +218,6 @@
             } = data;
 
             let html = '';
-            html += `<h2>Report</h2>`;
             html += report
 
 
@@ -231,7 +230,7 @@
             html += buildKeyValueTable(data_types, ['Column', 'Data Type']);
 
             // Missing Values Table
-            html += `<h2>Missing Values Count</h2>`;
+            html += `<h2>Missing Values Percentage</h2>`;
             html += buildKeyValueTable(missing_values, ['Column', 'Missing Values']);
 
             // Numeric Stats Table(s)
