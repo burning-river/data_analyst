@@ -8,7 +8,8 @@ import uvicorn
 import tempfile
 import openai
 
-openai.api_key = "**"
+openai.api_key = "**"  # or set directly: openai.api_key = "your-api-key"
+
 
 app = FastAPI(title="Data Analysis Platform")
 templates = Jinja2Templates(directory="templates")
@@ -55,6 +56,7 @@ async def upload_csv_file(csvFile: UploadFile = File(...)):
         os.remove(file_location)
 
     # Compose response JSON
+    missing_values = {key:int(value*100) for key, value in sorted(missing_values.items(), key = lambda x: x[1], reverse = True) if value > 0}
     response_json = {
         "data_size": data_size,
         "data_types": data_types,
@@ -64,9 +66,11 @@ async def upload_csv_file(csvFile: UploadFile = File(...)):
     }
 
     prompt = f"""
-    Prepare a report using the following dictonary: {response_json}.
+    Prepare a report using the following dictonary: {response_json} in HTML format.
     DO NOT display any tables, text only.
-    State the size of the dataset.
+    The header for the report must be "Summary".
+    Describe the dataset from the column names in it. If the column name doesn't make sense, try understanding the column from the values it contains. Each column description must be in a separate line.
+    State the size of the dataset. 
     State the number of categorical columns.
     State the number of numerical columns.
     """
@@ -76,7 +80,7 @@ async def upload_csv_file(csvFile: UploadFile = File(...)):
         {"role": "user", "content": prompt}
 
     ],
-    temperature=0.5
+    temperature=0.7
 )
 
     report = response.choices[0].message.content.strip()

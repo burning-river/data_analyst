@@ -31,7 +31,7 @@ class Analyst:
     def get_missing_values_count(self):# -> dict[str, int]:
         if self.data is None:
             raise ValueError("No data loaded. Please upload a CSV file first.")
-        return self.data.isnull().sum().to_dict()
+        return self.data.isnull().mean().to_dict()
 
     def get_numeric_column_stats(self): #-> dict[str, dict[str, float]]:
         if self.data is None:
